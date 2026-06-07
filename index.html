@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minilager - Namsos Boligeiendom TEST</title>
+    <title>Minilager - Namsos Boligeiendom</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
         
@@ -547,7 +547,20 @@
                 if (rows && rows.length > 0) {
                     storages = rows.map(r => {
                         let tenant = null;
-                        if (r.tenant && r.tenant !== 'null' && r.tenant !== '') {
+                        // Bygg tenant-objekt fra norske kolonner
+                        if (r.status === 'occupied' || r.leietaker) {
+                            tenant = {
+                                name: r.leietaker || '',
+                                phone: r.tlf || '',
+                                email: r.epost || '',
+                                startDate: r.innflytting || '',
+                                notes: r.notat || '',
+                                paymentStatus: r.betaling || 'OK',
+                                key: r.nokkel || ''
+                            };
+                        }
+                        // Støtt også JSON-pakket tenant fra tidligere
+                        if (!tenant && r.tenant && r.tenant !== 'null' && r.tenant !== '') {
                             try { tenant = JSON.parse(r.tenant); } catch(e) { tenant = null; }
                         }
                         let history = [];
@@ -555,10 +568,10 @@
                             try { history = JSON.parse(r.history); } catch(e) { history = []; }
                         }
                         return {
-                            id: Number(r.id) || 0,
-                            number: String(r.number || r.id || '').padStart(2, '0'),
-                            size: r.size || '',
-                            price: Number(r.price) || 0,
+                            id: Number(r.ID || r.id) || 0,
+                            number: String(r.navn || r.number || r.ID || r.id || '').padStart(2, '0'),
+                            size: r.størrelse || r.size || '',
+                            price: Number(r.pris || r.price) || 0,
                             status: r.status || 'vacant',
                             tenant: tenant,
                             history: history
@@ -583,13 +596,18 @@
             showSyncStatus('⟳ Lagrer...', '#ffaa00');
             try {
                 const payload = data.map(s => ({
-                    id: s.id,
-                    number: s.number,
-                    size: s.size,
-                    price: s.price,
+                    ID: s.id,
+                    navn: s.number,
+                    størrelse: s.size,
+                    pris: s.price,
                     status: s.status,
-                    tenant: JSON.stringify(s.tenant || null),
-                    history: JSON.stringify(s.history || [])
+                    leietaker: s.tenant?.name || '',
+                    tlf: s.tenant?.phone || '',
+                    epost: s.tenant?.email || '',
+                    innflytting: s.tenant?.startDate || '',
+                    notat: s.tenant?.notes || '',
+                    betaling: s.tenant?.paymentStatus || '',
+                    nokkel: s.tenant?.key || ''
                 }));
                 await fetch(API_URL, {
                     method: 'POST',
